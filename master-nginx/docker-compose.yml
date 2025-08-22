@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  master-nginx:
+    image: nginx:alpine
+    container_name: master-nginx-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - master-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - nginx-health-checker
+
+  # A simple health checker to ensure other services are ready
+  nginx-health-checker:
+    image: alpine:latest
+    container_name: nginx-health-checker
+    command: |
+      sh -c "
+        echo 'Waiting for services to be ready...'
+        apk add --no-cache curl
+        
+        # Wait for ThreatMap (port 5544)
+        echo 'Checking ThreatMap on port 5544...'
+        until curl -s http://host.docker.internal:5544/health > /dev/null 2>&1; do
+          echo 'ThreatMap not ready yet, waiting...'
+          sleep 5
+        done
+        echo 'ThreatMap is ready!'
+        
+        # Wait for Compliance Platform (port 5500)
+        echo 'Checking Compliance Platform on port 5500...'
+        until curl -s http://host.docker.internal:5500/health > /dev/null 2>&1; do
+          echo 'Compliance Platform not ready yet, waiting...'
+          sleep 5
+        done
+        echo 'Compliance Platform is ready!'
+        
+        echo 'All services are ready! Master Nginx can start.'
+        sleep infinity
+      "
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - master-network
+
+networks:
+  master-network:
+    driver: bridge

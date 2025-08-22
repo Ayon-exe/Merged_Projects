@@ -1,0 +1,23 @@
+# Development Dockerfile - runs Vite dev server
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy package files first (for better Docker layer caching)
+COPY package*.json ./
+
+# Install ALL dependencies (including dev dependencies)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose port 5173 (Vite dev server default port)
+EXPOSE 5173
+
+# Use Vite development server with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

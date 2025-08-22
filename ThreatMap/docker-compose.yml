@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Backend service
+  backend:
+    build:
+      context: ./Source Code/DC_LCTM_Backend
+      dockerfile: Dockerfile
+    container_name: threat-map-backend
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./Source Code/DC_LCTM_Backend/assets:/app/assets:ro
+    networks:
+      - threat-map-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend service
+  frontend:
+    build:
+      context: ./Source Code/DC_LCTM_Frontend-v2
+      dockerfile: Dockerfile
+    container_name: threat-map-frontend
+    restart: unless-stopped
+    networks:
+      - threat-map-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx proxy service
+  nginx:
+    image: nginx:alpine
+    container_name: threat-map-nginx
+    restart: unless-stopped
+    ports:
+      - "5544:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - threat-map-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  threat-map-network:
+    driver: bridge
+
+volumes:
+  backend-data:
